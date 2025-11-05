@@ -1,16 +1,15 @@
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import Navbar from "./components/Navbar";
 {/* Admin*/}
-import AdminLogin from "./pages/Admin/Login";
-import AdminDashboard from "./pages/Admin/DashboardAdmin";
-import AdminRooms from "./pages/Admin/rooms/AdminRooms";
-import CreateRooms from "./pages/Admin/rooms/CreateRooms";
-import UpdateRooms from "./pages/Admin/rooms/UpdateRooms";
+import AdminLogin from "./pages/auth/login/Login";
+import AdminDashboard from "./pages/auth/Admin/AdminDashboard";
+import AdminRooms from "./pages/auth/Admin/rooms/AdminRooms";
+import CreateRooms from "./pages/auth/Admin/rooms/CreateRooms";
+import UpdateRooms from "./pages/auth/Admin/rooms/UpdateRooms";
 {/* Public */}
 import HomePage from "./pages/HomePage";
 import Rooms from "./pages/nav/Room/Rooms";
 import MyBookings from "./pages/nav/MyBookings";
-import Transaction from "./pages/Transaction";
 import Footer from "./components/Footer";
 import SwimmingPool from "./pages/nav/facilities/SwimmingPool";
 import FitnessCentre from "./pages/nav/facilities/FitnessCentre";
@@ -51,7 +50,7 @@ function AppContent() {
         <Route path="/facilities/adventure-park" element={<AdventurePark />} />
         <Route path="/facilities/transportation" element={<Transportation />} />
         
-        <Route path="/transaction/:roomId" element={<Transaction />} />
+        {/* <Route path="/transaction/:roomId" element={<Transaction />} /> */}
       </Routes>
       
       {/* 2. Footer Hanya Muncul JIKA BUKAN Admin Route */}
