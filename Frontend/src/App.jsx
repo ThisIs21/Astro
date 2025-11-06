@@ -7,8 +7,9 @@ import Sidebar from "./components/Sidebar/adminSidebar";
 import AdminLogin from "./pages/auth/login/Login";
 import AdminDashboard from "./pages/auth/Admin/AdminDashboard";
 import AdminRooms from "./pages/auth/Admin/rooms/AdminRooms";
-import CreateRooms from "./pages/auth/Admin/rooms/CreateRooms";
-import UpdateRooms from "./pages/auth/Admin/rooms/UpdateRooms";
+import AdminRoomCard from "./pages/auth/Admin/rooms/RoomCard";
+import RoomDetailModal from "./pages/auth/Admin/rooms/RoomDetailModal";
+import AdminRoomForm from "./pages/auth/Admin/rooms/RoomFormModal";
 
 import HomePage from "./pages/HomePage";
 import Rooms from "./pages/nav/Room/Rooms";
@@ -41,8 +42,9 @@ function AppContent() {
         {/* SEMUA HALAMAN ADMIN → PAKAI SIDEBAR */}
         <Route path="/admin/dashboard" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
         <Route path="/admin/rooms" element={<AdminLayout><AdminRooms /></AdminLayout>} />
-        <Route path="/admin/rooms/create" element={<AdminLayout><CreateRooms /></AdminLayout>} />
-        <Route path="/admin/rooms/update/:roomId" element={<AdminLayout><UpdateRooms /></AdminLayout>} />
+        <Route path="/admin/rooms/cards" element={<AdminLayout><AdminRoomCard /></AdminLayout>} />
+        <Route path="/admin/rooms/cards/detail" element={<AdminLayout><RoomDetailModal /></AdminLayout>} />
+        <Route path="/admin/rooms/new" element={<AdminLayout><AdminRoomForm /></AdminLayout>} />
 
         {/* PUBLIC */}
         <Route path="/" element={<HomePage />} />

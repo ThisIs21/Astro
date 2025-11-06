@@ -4,6 +4,9 @@ import { motion } from "framer-motion";
 import { Eye, EyeOff, Leaf, CheckCircle, AlertTriangle } from "lucide-react"; 
 import { useNavigate } from "react-router-dom";
 
+// URL dasar untuk backend Go Anda
+const API_BASE_URL = "http://localhost:8080"; 
+
 const LoginPage = () => {
   // State untuk form
   const [showPass, setShowPass] = useState(false);
@@ -17,46 +20,66 @@ const LoginPage = () => {
   
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const showCustomMessage = (type, text) => {
+    setMessage({ type, text });
+    setShowMessageBox(true);
+    // Secara otomatis menyembunyikan pesan setelah 5 detik
+    setTimeout(() => setShowMessageBox(false), 5000);
+  };
+
+  const handleLogin = async (e) => { // Ditambahkan 'async'
     e.preventDefault();
     setLoading(true);
     setShowMessageBox(false);
     setMessage(null);
 
-    // Simulasi penundaan jaringan
-    setTimeout(() => {
-      if (email === "admin@astro.com" && password === "astro123") {
-        // Simulasi Login Sukses (Penyimpanan Token)
-        // Note: Dalam aplikasi nyata, gunakan Firebase Auth atau metode otentikasi aman lainnya.
-        localStorage.setItem("adminToken", "rahasia-astro"); 
-        
-        setMessage({
-          type: "success",
-          text: "Login berhasil! Mengalihkan ke Dashboard Admin.",
-        });
-        setShowMessageBox(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/login/do-login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // Penting: Tambahkan header CORS atau kredensial jika perlu
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
+      const data = await response.json();
+
+      if (response.ok) {
+        // Login Sukses (Status 200)
+        // Note: Dalam aplikasi nyata, 'token' harus menjadi bagian dari respons
+        const token = data.user.token || "default-secure-token"; // Ganti dengan logika token asli dari Go
+        localStorage.setItem("adminToken", token); 
+        
+        showCustomMessage("success", "Login berhasil! Mengalihkan ke Dashboard Admin.");
+
+        // Navigasi setelah penundaan sebentar
         setTimeout(() => {
           navigate("/admin/dashboard");
         }, 1500);
 
       } else {
-        // Simulasi Login Gagal (Menampilkan kustom pesan error/kredensial demo)
-        setMessage({
-          type: "error",
-          text: (
-            <>
-              Kredensial tidak valid. Silakan coba:
-              <br />
-              <strong className="block mt-2">Email: admin@astro.com</strong>
-              <strong>Password: astro123</strong>
-            </>
-          ),
-        });
-        setShowMessageBox(true);
+        // Login Gagal (Status 401 atau 400)
+        const errorText = data.error || "Terjadi kesalahan saat login.";
+        
+        // Cek jika error 401 dari Gin, kemungkinan menampilkan pesan dari h.service.Login
+        showCustomMessage("error", errorText);
       }
+    } catch (error) {
+      // Kesalahan jaringan atau server tidak terjangkau
+      console.error("Error during fetch:", error);
+      showCustomMessage(
+        "error", 
+        <>
+          Gagal terhubung ke server Go. Pastikan backend berjalan di 
+          <strong className="block mt-1">
+             {API_BASE_URL}
+          </strong>
+        </>
+      );
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   const MessageVariants = {
@@ -153,7 +176,7 @@ const LoginPage = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="w-full px-4 py-3 rounded-xl bg-white/20 border border-white/40 text-white placeholder-white/50 focus:outline-none focus:border-amber-400 transition"
-                placeholder="admin@astro.com"
+                placeholder="Masukkan email Anda"
                 disabled={loading}
               />
             </motion.div>

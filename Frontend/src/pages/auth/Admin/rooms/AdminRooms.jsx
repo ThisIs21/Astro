@@ -1,177 +1,215 @@
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { FaBed, FaDollarSign, FaEdit, FaTrash, FaCheckCircle, FaTimesCircle, FaEye } from "react-icons/fa";
+// src/pages/auth/Admin/rooms/AdminRooms.jsx
+import React, { useState, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import RoomCard from "./RoomCard";
+import RoomFormModal from "./RoomFormModal";
 
-// Data kamar Admin (Diperbarui agar sesuai dengan format Admin)
-const ADMIN_ROOMS_DATA = [
+const initialRooms = [
   {
-    id: "R001",
-    r_name: "Deluxe Room",
-    r_type: "Deluxe",
-    rp_weekday: 1500000,
-    rp_weekend: 2000000,
-    r_status: "Available", // Penting untuk Admin
-    r_description: "Kamar mewah dengan fasilitas lengkap. Pemandangan kota.",
-    r_facilities: ["WiFi", "TV", "Mini Bar"],
-    r_images: [
-        "https://images.unsplash.com/photo-1571896349842-33c89424de2d?q=80&w=800&h=500&fit=crop", // Ganti dengan URL gambar asli
-        "https://images.unsplash.com/photo-1549488344-99b9a6711516?q=80&w=800&h=500&fit=crop"
-    ]
+    id: 1,
+    name: "Glamping Premium Kebun Teh",
+    type: "Glamping",
+    status: "available",
+    price: 850000,
+    capacity: 4,
+    size: 35,
+    bed: "King Bed",
+    description: "Tenda glamping premium dengan pemandangan kebun teh langsung.",
+    facilities: ["AC", "Private Bathroom", "Tea Garden View", "WiFi"],
+    image: "https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?w=800&q=80",
+    updatedAt: "2025-11-06",
   },
   {
-    id: "R002",
-    r_name: "Executive Suite",
-    r_type: "Suite",
-    rp_weekday: 3500000,
-    rp_weekend: 4200000,
-    r_status: "Booked",
-    r_description: "Suite premium dengan ruang tamu terpisah dan jacuzzi.",
-    r_facilities: ["WiFi", "TV", "Mini Bar", "Jacuzzi"],
-    r_images: [
-        "https://images.unsplash.com/photo-1582234057630-f8f8f26d60a5?q=80&w=800&h=500&fit=crop",
-        "https://images.unsplash.com/photo-1570535973685-618413b91c12?q=80&w=800&h=500&fit=crop"
-    ]
-  }
+    id: 2,
+    name: "Glamping Standard Alam",
+    type: "Glamping",
+    status: "occupied",
+    price: 650000,
+    capacity: 2,
+    size: 25,
+    bed: "Queen Bed",
+    description: "Tenda glamping nyaman dengan suasana alam tenang.",
+    facilities: ["Fan", "Shared Bathroom", "Garden View"],
+    image: "https://images.unsplash.com/photo-1510312302256-7c6eb968c9d7?w=800&q=80",
+    updatedAt: "2025-11-05",
+  },
+  {
+    id: 3,
+    name: "Villa Keluarga Ciater",
+    type: "Villa",
+    status: "available",
+    price: 1200000,
+    capacity: 6,
+    size: 80,
+    bed: "2 Queen Beds",
+    description: "Villa keluarga luas dengan pemandangan pegunungan.",
+    facilities: ["AC", "Private Kitchen", "Living Room", "Bathtub"],
+    image: "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800&q=80",
+    updatedAt: "2025-11-04",
+  },
+  {
+    id: 4,
+    name: "Cottage Romantis",
+    type: "Cottage",
+    status: "maintenance",
+    price: 750000,
+    capacity: 2,
+    size: 30,
+    bed: "Queen Bed",
+    description: "Cottage romantis untuk pasangan dengan suasana hangat.",
+    facilities: ["Fireplace", "Private Balcony", "Hot Tub"],
+    image: "https://images.unsplash.com/photo-1582719471384-894fbb16eafc?w=800&q=80",
+    updatedAt: "2025-11-03",
+  },
 ];
 
-// Helper Function untuk format Rupiah
-const formatRupiah = (number) => {
-    return new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR',
-        minimumFractionDigits: 0,
-    }).format(number);
+const statusColors = {
+  available: "bg-emerald-100 text-emerald-700",
+  occupied: "bg-red-100 text-red-700",
+  maintenance: "bg-amber-100 text-amber-700",
 };
 
-export default function Rooms() {
-  const navigate = useNavigate();
-  // Menggunakan data dummy yang baru dan lebih lengkap
-  const [rooms, setRooms] = useState(ADMIN_ROOMS_DATA); 
+export default function AdminRooms() {
+  const [rooms, setRooms] = useState(initialRooms);
+  const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterType, setFilterType] = useState("all");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingRoom, setEditingRoom] = useState(null);
 
-  // Fungsi aksi untuk Admin
-  const handleDelete = (roomId) => {
-      if (window.confirm(`Yakin ingin menghapus Kamar ID: ${roomId}?`)) {
-          // Logika Hapus: Kirim request DELETE ke API
-          console.log(`[ADMIN ACTION] Menghapus kamar ${roomId}`);
-          // Update state setelah berhasil dihapus
-          setRooms(prevRooms => prevRooms.filter(room => room.id !== roomId));
-      }
+  const filteredRooms = useMemo(() => {
+    return rooms.filter((room) => {
+      const matchesSearch = room.name.toLowerCase().includes(search.toLowerCase());
+      const matchesStatus = filterStatus === "all" || room.status === filterStatus;
+      const matchesType = filterType === "all" || room.type === filterType;
+      return matchesSearch && matchesStatus && matchesType;
+    });
+  }, [rooms, search, filterStatus, filterType]);
+
+  const handleSave = (roomData) => {
+    if (editingRoom) {
+      setRooms(rooms.map((r) => (r.id === editingRoom.id ? { ...r, ...roomData, updatedAt: new Date().toISOString().split("T")[0] } : r)));
+    } else {
+      const newRoom = {
+        ...roomData,
+        id: Date.now(),
+        status: "available",
+        updatedAt: new Date().toISOString().split("T")[0],
+      };
+      setRooms([...rooms, newRoom]);
+    }
+    setIsModalOpen(false);
+    setEditingRoom(null);
+  };
+
+  const handleDelete = (id) => {
+    if (window.confirm("Yakin hapus kamar ini?")) {
+      setRooms(rooms.filter((r) => r.id !== id));
+    }
   };
 
   return (
-    // Layout Admin: Background putih/abu-abu agar lebih fokus ke konten
-    <div className="min-h-screen bg-gray-100 p-8"> 
-      
-      <div className="max-w-7xl mx-auto">
-        
-        <h1 className="text-3xl font-extrabold text-gray-900 mb-8 border-b pb-4">
-          Manajemen Kamar Hotel 🏨
-        </h1>
+    <div className="p-8">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-8"
+      >
+        <h1 className="text-4xl font-bold text-emerald-800 mb-2">Manajemen Kamar</h1>
+        <p className="text-gray-600">Kelola semua kamar dan akomodasi Astro Ciater</p>
+      </motion.div>
 
-        {/* Tombol Tambah Kamar Baru */}
-        <div className="flex justify-end mb-6">
-          <Link 
-            to="/admin/rooms/create" 
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 shadow-lg flex items-center space-x-2"
-          >
-            <FaBed />
-            <span>Tambah Kamar Baru</span>
-          </Link>
-        </div>
-
-        {/* Daftar Kamar dalam Card Layout */}
-        <div className="space-y-6">
-          {rooms.length === 0 ? (
-            <p className="text-center text-lg text-gray-600 p-8 bg-white rounded-lg shadow">
-              Belum ada data kamar. Silakan tambahkan kamar baru.
-            </p>
-          ) : (
-            rooms.map((room) => (
-              <div
-                key={room.id}
-                // Card Layout Mirip User View, tapi dengan warna & shadow berbeda untuk Admin
-                className="flex flex-col md:flex-row bg-white shadow-xl rounded-xl overflow-hidden border border-gray-200 hover:shadow-2xl transition duration-300"
+      {/* Filters */}
+      <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
+        <div className="flex flex-wrap gap-4 items-center">
+          <div className="flex gap-2">
+            {["all", "available", "occupied", "maintenance"].map((status) => (
+              <button
+                key={status}
+                onClick={() => setFilterStatus(status)}
+                className={`px-4 py-2 rounded-full font-medium transition ${
+                  filterStatus === status
+                    ? status === "all"
+                      ? "bg-emerald-600 text-white"
+                      : statusColors[status]
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
               >
-                
-                {/* Bagian Kiri: Gambar dan Status */}
-                <div className="w-full md:w-1/4 relative h-64 md:h-auto">
-                    {/* Gambar Pertama sebagai Thumbnail */}
-                    <img
-                        src={room.r_images[0] || "https://via.placeholder.com/600x400?text=No+Image"}
-                        alt={room.r_name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => (e.target.src = "https://via.placeholder.com/600x400?text=No+Image")}
-                    />
-                    
-                    {/* Badge Status Admin */}
-                    <div 
-                        className={`absolute top-0 right-0 m-3 px-3 py-1 text-xs font-bold rounded-full 
-                            ${room.r_status === "Available" ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`
-                        }
-                    >
-                        <div className="flex items-center space-x-1">
-                            {room.r_status === "Available" ? <FaCheckCircle /> : <FaTimesCircle />}
-                            <span>{room.r_status}</span>
-                        </div>
-                    </div>
-                </div>
+                {status === "all" ? "Semua" : status === "available" ? "Tersedia" : status === "occupied" ? "Terisi" : "Maintenance"}
+              </button>
+            ))}
+          </div>
 
-                {/* Bagian Tengah: Detail Kamar dan Harga */}
-                <div className="w-full md:w-2/4 p-6 flex flex-col justify-between">
-                    <div>
-                        <span className="text-xs font-semibold uppercase text-gray-500">
-                            ID: {room.id}
-                        </span>
-                        <h2 className="text-2xl font-bold text-gray-900 mt-1 mb-2">
-                            {room.r_name} ({room.r_type})
-                        </h2>
-                        <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-                            {room.r_description}
-                        </p>
-                    </div>
+          <div className="flex gap-2">
+            {["all", "Glamping", "Villa", "Cottage", "Cabin"].map((type) => (
+              <button
+                key={type}
+                onClick={() => setFilterType(type)}
+                className={`px-4 py-2 rounded-full font-medium transition ${
+                  filterType === type
+                    ? "bg-amber-600 text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                {type === "all" ? "Semua Tipe" : type}
+              </button>
+            ))}
+          </div>
 
-                    <div className="flex flex-wrap items-center text-sm text-gray-700 space-x-4 border-t pt-4">
-                        <div className="flex items-center space-x-1">
-                            <FaDollarSign className="text-base text-green-600" />
-                            <span>**Weekday:** {formatRupiah(room.rp_weekday)}</span>
-                        </div>
-                        <div className="flex items-center space-x-1">
-                            <FaDollarSign className="text-base text-red-600" />
-                            <span>**Weekend:** {formatRupiah(room.rp_weekend)}</span>
-                        </div>
-                    </div>
-                </div>
+          <div className="flex-1 max-w-md">
+            <input
+              type="text"
+              placeholder="Cari kamar..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:border-emerald-500 transition"
+            />
+          </div>
 
-                {/* Bagian Kanan: Aksi Admin */}
-                <div className="w-full md:w-1/4 p-6 bg-gray-50 flex flex-col space-y-3 justify-center">
-                    <Link
-                        to={`/admin/rooms/edit/${room.id}`}
-                        className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-center flex items-center justify-center space-x-2"
-                    >
-                        <FaEdit />
-                        <span>Edit Detail</span>
-                    </Link>
-                    <button
-                        onClick={() => handleDelete(room.id)}
-                        className="bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg transition duration-200 text-center flex items-center justify-center space-x-2"
-                    >
-                        <FaTrash />
-                        <span>Hapus Kamar</span>
-                    </button>
-                    <button
-                        onClick={() => navigate(`/admin/rooms/view/${room.id}`)}
-                        className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-2 px-4 rounded-lg transition duration-200 text-center flex items-center justify-center space-x-2"
-                    >
-                        <FaEye />
-                        <span>Lihat Penuh</span>
-                    </button>
-                </div>
-
-              </div>
-            ))
-          )}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => {
+              setEditingRoom(null);
+              setIsModalOpen(true);
+            }}
+            className="px-6 py-3 bg-emerald-600 text-white font-bold rounded-xl shadow-lg hover:bg-emerald-700 transition flex items-center gap-2"
+          >
+            + Tambah Kamar
+          </motion.button>
         </div>
       </div>
+
+      {/* Room Grid */}
+      <motion.div
+        layout
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+      >
+        <AnimatePresence>
+          {filteredRooms.map((room) => (
+            <RoomCard
+              key={room.id}
+              room={room}
+              onEdit={() => {
+                setEditingRoom(room);
+                setIsModalOpen(true);
+              }}
+              onDelete={() => handleDelete(room.id)}
+            />
+          ))}
+        </AnimatePresence>
+      </motion.div>
+
+      {/* Modal */}
+      <RoomFormModal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingRoom(null);
+        }}
+        onSave={handleSave}
+        initialData={editingRoom}
+      />
     </div>
   );
 }
