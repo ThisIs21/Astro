@@ -2,7 +2,7 @@ package main
 
 import (
 	"astro-backend/config"
-	"astro-backend/handler/admin"
+	"astro-backend/routes"
 
 	"fmt"
 	"log"
@@ -28,28 +28,19 @@ func main() {
 	}
 	gin.SetMode(ginMode)
 
-	router := gin.New()
-	router.Use(gin.Logger())
-	router.Use(gin.Recovery())
+	r := gin.Default()
+	// === 4. SETUP ROUTES ===
+   routes.AuthRoutes(r)
+   routes.AdminRoutes(r)
 
-	// === 4. ROUTE DASAR ===
-	router.GET("/ping", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"message": "🚀 Backend Hotel Lembang SIAP dan Stabil!",
-		})
-	})
 
-	router.GET("/admin/users", admin.IndexUser)
-	router.POST("/admin/tambah-users/", admin.CreateUser)
-
-	// === 6. JALANKAN SERVER ===
+	// === 5. RUN SERVER ===
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8080"
+		port = "8080" // default port
 	}
-
-	fmt.Printf("✅ Server berjalan di http://localhost:%s\n", port)
-	if err := router.Run(":" + port); err != nil {
+	fmt.Printf("🚀 Server running on port %s\n", port)
+	if err := r.Run(":" + port); err != nil {
 		log.Fatalf("❌ Gagal menjalankan server: %v", err)
 	}
 }

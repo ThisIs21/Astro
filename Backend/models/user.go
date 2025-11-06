@@ -11,4 +11,6 @@ type User struct {
 	NoTlp    string             	`bson:"NoTlp" json:"NoTlp"`
 	Password string          	    `bson:"Password" json:"Password"`
 	Role     string             	`bson:"Role" json:"Role"`
+	CreatedAt primitive.DateTime   `bson:"CreatedAt" json:"CreatedAt"`
+	UpdatedAt primitive.DateTime   `bson:"UpdatedAt" json:"UpdatedAt"`
 }
