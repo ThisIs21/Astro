@@ -12,6 +12,8 @@ import {
   BarChart3,
 } from "lucide-react";
 
+const API_URL = "http://localhost:8080/login/do-login";
+
 export default function AdminDashboard() {
   const stats = [
     {
