@@ -23,12 +23,12 @@ func NewAuthService(repo adminRepo.UserRepository) AuthService {
 func (s *authService) Login(Email, password string) (models.User, error) {
 	user, err := s.repo.FindByEmail(Email)
 	if err != nil {
-		return user, errors.New("Email atau Password salah")
+		return user, errors.New("Email tidak ditemukan")
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
 	if err != nil {
-		return user, errors.New("Email atau Password salah")
+		return user, errors.New("Password salah")
 	}
 
 	return user, nil

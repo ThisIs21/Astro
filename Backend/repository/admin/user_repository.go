@@ -17,6 +17,7 @@ type UserRepository interface {
 	Delete(id string) error
 	Update(id string, user models.User) error
 	FindByEmail(Email string) (models.User, error)
+	GetAllUsers() ([]models.User, error)
 }
 
 type userRepository struct{}
@@ -24,7 +25,24 @@ type userRepository struct{}
 func NewUserRepository() UserRepository {
 	return &userRepository{}
 }
+func (*userRepository) GetAllUsers() ([]models.User, error) {
+	collection := config.GetMongoCollection("user")
 
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	var allUser []models.User
+
+	cursor, err := collection.Find(ctx, bson.M{})
+	if err != nil {
+		return nil, err
+	}
+	if err = cursor.All(ctx, &allUser); err != nil {
+		return nil, err
+	}
+
+	return allUser, nil
+}
 func (*userRepository) Create(user models.User) error {
 	collection := config.GetMongoCollection("user")
 
