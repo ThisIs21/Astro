@@ -42,7 +42,7 @@ export default function AdminUsers() {
   const stats = {
     total: users.length,
     active: users.filter(u => u.Role !== "Diblokir").length,
-    customers: users.filter(u => u.Role === "Pelanggan").length,
+    customers: users.filter(u => u.Role === "Resepsionis").length,
     admins: users.filter(u => u.Role === "Admin").length,
   };
 
@@ -104,7 +104,7 @@ export default function AdminUsers() {
         {[
           { label: "Total Pengguna", value: stats.total, icon: Users, color: "blue" },
           { label: "Pengguna Aktif", value: stats.active, icon: UserCheck, color: "emerald" },
-          { label: "Pelanggan", value: stats.customers, icon: UserX, color: "amber" },
+          { label: "Resepsionis", value: stats.customers, icon: UserX, color: "amber" },
           { label: "Admin", value: stats.admins, icon: Shield, color: "purple" },
         ].map((stat, i) => (
           <motion.div
@@ -131,7 +131,7 @@ export default function AdminUsers() {
       <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
         <div className="flex flex-wrap gap-4 items-center">
           <div className="flex gap-2">
-            {["all", "Admin", "Pelanggan"].map(role => (
+            {["all", "Admin", "Resepsionis"].map(role => (
               <button
                 key={role}
                 onClick={() => setFilterRole(role)}
