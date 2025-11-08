@@ -18,18 +18,19 @@ export default function AdminUsers() {
     fetchUsers();
   }, []);
 
-  const fetchUsers = async () => {
-    try {
-      const res = await fetch("http://localhost:8080/admin/user");
-      const data = await res.json();
-      setUsers(data.users || []);
-    } catch (err) {
-      console.error("Gagal ambil data:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+ const fetchUsers = async () => {
+  try {
+    const res = await fetch("http://localhost:8080/admin/user");
+    if (!res.ok) throw new Error("Network error");
+    const data = await res.json();
+    console.log("Data masuk:", data); // LIHAT DI CONSOLE!
+    setUsers(Array.isArray(data) ? data : []); // PAKAI LANGSUNG
+  } catch (err) {
+    console.error("Gagal ambil data:", err);
+  } finally {
+    setLoading(false);
+  }
+};
   const filteredUsers = useMemo(() => {
     return users.filter(user => {
       const matchesSearch = user.Name.toLowerCase().includes(search.toLowerCase()) ||
