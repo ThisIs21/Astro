@@ -19,16 +19,33 @@ export default function AdminUsers() {
   }, []);
 
   const fetchUsers = async () => {
-    try {
-      const res = await fetch("http://localhost:8080/admin/user");
-      const data = await res.json();
-      setUsers(data.users || []);
-    } catch (err) {
-      console.error("Gagal ambil data:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    const res = await fetch("http://localhost:8080/admin/user");
+    if (!res.ok) throw new Error("Gagal koneksi");
+
+    const data = await res.json();
+    console.log("Data dari backend:", data); // Debug
+
+    const userList = Array.isArray(data) ? data : data.users || [];
+
+    // NORMALISASI DATA → INI YANG KAMU CARI!
+    const normalized = userList.map(u => ({
+      Id: u.id || u.Id || u._id?.toString() || "", // PASTIKAN ID ADA & STRING
+      Name: u.Name || u.name || "Tanpa Nama",
+      Email: u.Email || u.email || "-",
+      NoTlp: u.NoTlp || u.noTlp || "-",
+      Role: u.Role || u.role || "Resepsionis",
+      CreatedAt: u.CreatedAt || u.createdAt
+    }));
+
+    setUsers(normalized);
+  } catch (err) {
+    console.error("Error:", err);
+    alert("Gagal ambil data");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const filteredUsers = useMemo(() => {
     return users.filter(user => {
@@ -42,41 +59,54 @@ export default function AdminUsers() {
   const stats = {
     total: users.length,
     active: users.filter(u => u.Role !== "Diblokir").length,
-    customers: users.filter(u => u.Role === "Pelanggan").length,
+    customers: users.filter(u => u.Role === "Resepsionis").length,
     admins: users.filter(u => u.Role === "Admin").length,
   };
 
   const handleSave = async (userData) => {
-    const method = editingUser ? "POST" : "POST";
-    const url = editingUser 
-      ? `http://localhost:8080/admin/edit-user/${editingUser.Id}`
-      : "http://localhost:8080/admin/create-user";
+  const isEdit = !!editingUser;
+  const url = isEdit
+    ? `http://localhost:8080/admin/edit-user/${editingUser.Id}`
+    : "http://localhost:8080/admin/create-user";
 
-    try {
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(userData),
-      });
-      if (res.ok) {
-        fetchUsers();
-        setIsModalOpen(false);
-        setEditingUser(null);
-      }
-    } catch (err) {
-      alert("Gagal simpan user",err);
+  // Pastikan ID tidak ikut jika create
+  const body = isEdit ? userData : { ...userData };
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    if (res.ok) {
+      fetchUsers();
+      setIsModalOpen(false);
+      setEditingUser(null);
+    } else {
+      const err = await res.text();
+      alert("Gagal simpan: " + err);
     }
-  };
+  } catch (err) {
+    alert("Error: " + err.message);
+  }
+};
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Yakin hapus user ini?")) return;
-    try {
-      await fetch(`http://localhost:8080/admin/delete-user/${id}`, { method: "DELETE" });
+  if (!window.confirm("Yakin hapus user ini?")) return;
+  try {
+    const res = await fetch(`http://localhost:8080/admin/delete-user/${id}`, {
+      method: "DELETE",
+    });
+    if (res.ok) {
       fetchUsers();
-    } catch (err) {
-      alert("Gagal hapus",err);
+    } else {
+      alert("Gagal hapus: " + await res.text());
     }
-  };
+  } catch (err) {
+    alert("Error: " + err.message);
+  }
+};
 
   return (
     <div className="p-8">
@@ -104,7 +134,7 @@ export default function AdminUsers() {
         {[
           { label: "Total Pengguna", value: stats.total, icon: Users, color: "blue" },
           { label: "Pengguna Aktif", value: stats.active, icon: UserCheck, color: "emerald" },
-          { label: "Pelanggan", value: stats.customers, icon: UserX, color: "amber" },
+          { label: "Resepsionis", value: stats.customers, icon: UserX, color: "amber" },
           { label: "Admin", value: stats.admins, icon: Shield, color: "purple" },
         ].map((stat, i) => (
           <motion.div
@@ -131,7 +161,7 @@ export default function AdminUsers() {
       <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
         <div className="flex flex-wrap gap-4 items-center">
           <div className="flex gap-2">
-            {["all", "Admin", "Pelanggan"].map(role => (
+            {["all", "Admin", "Resepsionis"].map(role => (
               <button
                 key={role}
                 onClick={() => setFilterRole(role)}
@@ -153,7 +183,7 @@ export default function AdminUsers() {
                 placeholder="Cari pengguna..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:border-emerald-500 transition"
+                className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:border-emerald-500 transition text-black"
               />
             </div>
           </div>
