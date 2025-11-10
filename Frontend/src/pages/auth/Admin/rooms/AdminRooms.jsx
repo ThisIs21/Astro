@@ -19,38 +19,61 @@ export default function AdminRooms() {
   }, []);
 
   const fetchRooms = async () => {
-    try {
-     const res = await fetch("http://localhost:8080/admin/room", {
-  credentials: "include" // Kalau pakai session/cookie
-});
-      if (!res.ok) throw new Error("Gagal ambil data");
-      const data = await res.json();
-
-      const normalized = data.map(r => ({
-        id: r.id || r._id,
-        name: r.name || "",
-        type: r.type || "Glamping",
-        status: r.availability ? "available" : "maintenance",
-        price: r.price_per_night || 0,
-        capacity: r.capacity || 2,
-        size: 0, // tidak ada di backend
-        bed: r.bed_type || "Queen Bed",
-        description: r.description || "",
-        facilities: r.facilities || [],
-        image: (r.images && r.images[0]) || "https://placehold.co/600x400",
-        updatedAt: r.updated_at ? new Date(Number(r.updated_at)).toISOString().split("T")[0] : "N/A",
-        room_number: r.room_number || "",
-        category: r.category || ""
-      }));
-
-      setRooms(normalized);
-    } catch (err) {
-      console.error(err);
-      alert("Gagal load kamar");
-    } finally {
-      setLoading(false);
+  try {
+    const res = await fetch("http://localhost:8080/admin/room");
+    
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("HTTP Error:", res.status, errText);
+      throw new Error(`Gagal koneksi: ${res.status} - ${errText}`);
     }
-  };
+
+    const data = await res.json();
+    console.log("Raw data dari backend:", data); // LIHAT INI DI CONSOLE!
+
+    // CEK APAKAH DATA ARRAY
+    let roomList = [];
+    if (Array.isArray(data)) {
+      roomList = data;
+    } else if (data && Array.isArray(data.rooms)) {
+      roomList = data.rooms;
+    } else if (data === null || data === undefined) {
+      console.log("Data null/undefined → kosong");
+      roomList = [];
+    } else {
+      console.warn("Data bukan array:", data);
+      roomList = [];
+    }
+
+    const normalized = roomList.map(r => ({
+      id: r.id || r._id || r.Id || "",
+      name: r.name || r.Name || "Tanpa Nama",
+      type: r.type || r.Type || "Glamping",
+      status: r.availability === false ? "maintenance" : "available",
+      price: Number(r.price_per_night || r.PricePerNight || 0),
+      capacity: Number(r.capacity || r.Capacity || 2),
+      size: 0,
+      bed: r.bed_type || r.Bed_type || "Queen Bed",
+      description: r.description || r.Description || "",
+      facilities: r.facilities || r.Facilities || [],
+      image: r.images && r.images.length > 0 
+        ? `http://localhost:8080${r.images[0]}` 
+        : "https://placehold.co/600x400/CCCCCC/666666?text=No+Image",
+      updatedAt: r.updated_at 
+        ? new Date(Number(r.updated_at)).toLocaleDateString("id-ID")
+        : "N/A",
+      room_number: r.room_number || r.RoomNumber || "",
+      category: r.category || r.Category || ""
+    }));
+
+    setRooms(normalized);
+  } catch (err) {
+    console.error("Fetch error:", err);
+    alert("Gagal load kamar: " + err.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   // === FILTER ===
   const filteredRooms = useMemo(() => {
