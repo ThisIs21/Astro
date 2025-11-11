@@ -86,49 +86,37 @@ export default function AdminRooms() {
   }, [rooms, search, filterStatus, filterType]);
 
   // === CREATE / UPDATE ===
-  const handleSave = async (formData) => {
+  const handleSave = async (formData) => { // formData HARUS berupa objek FormData dari modal
     const isEdit = !!editingRoom;
     const url = isEdit
-      ? `http://localhost:8080/admin/edit-room/${editingRoom.id}`
+      ? `http://localhost:8080/admin/edit-room/${editingRoom.id}` // Ganti :id dengan ID kamar
       : "http://localhost:8080/admin/create-room";
-
-    const form = new FormData();
-    form.append("name", formData.name);
-    form.append("description", formData.description);
-    form.append("room_number", formData.room_number || "");
-    form.append("price", formData.price);
-    form.append("type", formData.type);
-    form.append("capacity", formData.capacity);
-    form.append("bed_type", formData.bed);
-    form.append("category", formData.category || "");
-
-    formData.facilities.forEach(f => form.append("facilities", f));
-
-    // Gambar: hanya kirim jika ada file baru
-    if (formData.imageFile) {
-      form.append("images", formData.imageFile);
-    } else if (!isEdit && formData.image) {
-      form.append("images", formData.image); // URL sementara
-    }
 
     try {
       const res = await fetch(url, {
         method: "POST",
-        body: form,
+        // [KRUSIAL] Body adalah objek FormData. JANGAN SET Content-Type!
+        body: formData, 
       });
 
       if (res.ok) {
+        // Berhasil: Tutup modal dan refresh daftar
+        alert(isEdit ? "Kamar berhasil diperbarui!" : "Kamar berhasil dibuat!");
         fetchRooms();
         setIsModalOpen(false);
         setEditingRoom(null);
       } else {
-        const err = await res.text();
-        alert("Gagal simpan: " + err);
+        // Gagal: Tampilkan pesan error dari backend
+        const errMsg = await res.text();
+        console.error("Error Response:", errMsg);
+        alert("Gagal simpan data. Cek Console untuk detail.");
       }
     } catch (err) {
-      alert("Error: " + err.message);
+      // Gagal koneksi (CORS/Server mati)
+      console.error("Fetch Error:", err);
+      alert("Gagal terhubung ke server Go. Pastikan server berjalan dan CORS sudah benar.");
     }
-  };
+};
 
   // === DELETE ===
   const handleDelete = async (id) => {
@@ -186,7 +174,7 @@ export default function AdminRooms() {
             <input
               type="text" placeholder="Cari kamar..."
               value={search} onChange={e => setSearch(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:border-emerald-500"
+              className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:border-emerald-500 text-black"
             />
           </div>
 
