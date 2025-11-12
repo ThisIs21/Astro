@@ -35,7 +35,7 @@ func main() {
     // --- 3.1. SETUP CORS ---
     // Konfigurasi ini mengizinkan permintaan dari domain manapun saat pengembangan
     configCORS := cors.DefaultConfig()
-    configCORS.AllowOrigins = []string{"*"} 
+    configCORS.AllowOrigins = []string{"http://localhost:5173"} 
     configCORS.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
     // Penting untuk mengizinkan Content-Type karena kita mengirim JSON
     configCORS.AllowHeaders = []string{"Origin", "Content-Type", "Authorization"}
@@ -43,9 +43,12 @@ func main() {
     r.Use(cors.New(configCORS))
     // --- END SETUP CORS ---
 
+    r.Static("/uploads", "./uploads") //meh bisa manggil foto
+
     // === 4. SETUP ROUTES ===
     routes.AuthRoutes(r)
     routes.AdminRoutes(r)
+    
 
 
     // === 5. RUN SERVER ===
