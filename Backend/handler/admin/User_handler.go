@@ -12,9 +12,9 @@ type UserHandler struct {
 	service admin.UserService
 }
 
-func IndexUser(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "User Handler is working!"})
-}
+// func IndexUser(c *gin.Context) {
+// 	c.JSON(http.StatusOK, gin.H{"message": "User Handler is working!"})
+// }
 
 func NewUserHandler(s admin.UserService) UserHandler {
 	return UserHandler{s}
@@ -57,5 +57,13 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "User berhasil diperbarui"})
+}
+func (h UserHandler) GetAllUsers(c *gin.Context) {
+	users, err := h.service.GetAllUsers()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data user"})
+		return
+	}
+	c.JSON(http.StatusOK, users)
 }
 

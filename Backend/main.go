@@ -43,9 +43,12 @@ func main() {
     r.Use(cors.New(configCORS))
     // --- END SETUP CORS ---
 
+    r.Static("/uploads", "./uploads") //meh bisa manggil foto
+
     // === 4. SETUP ROUTES ===
     routes.AuthRoutes(r)
     routes.AdminRoutes(r)
+    
 
 
     // === 5. RUN SERVER ===

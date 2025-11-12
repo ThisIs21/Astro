@@ -14,10 +14,15 @@ type UserService interface {
 	CreateUser(user models.User) error
 	DeleteUser(id string) error
 	UpdateUser(user models.User, id string) error
+	GetAllUsers() ([]models.User, error)
 }
 
 type userService struct {
 	repo admin.UserRepository
+}
+
+func (s *userService) GetAllUsers() ([]models.User, error) {
+	return s.repo.GetAllUsers()
 }
 
 func NewUserService(repo admin.UserRepository) UserService {

@@ -11,9 +11,9 @@ type Room struct {
 	RoomNumber     string             `bson:"room_number" json:"room_number"`
 	PricePerNight  float64            `bson:"price_per_night" json:"price_per_night"`
 	Images         []string           `bson:"images" json:"images"`
+	Bed_type	   string             `bson:"bed_type" json:"bed_type"`
 	Type           string             `bson:"type" json:"type"`
 	Capacity       int                `bson:"capacity" json:"capacity"`
-	BedType        string             `bson:"bed_type" json:"bed_type"`
 	Availability   bool               `bson:"availability" json:"availability"`
 	Facilities     []string           `bson:"facilities" json:"facilities"`
 	Category       string             `bson:"category" json:"category"`
