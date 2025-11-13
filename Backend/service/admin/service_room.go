@@ -13,12 +13,13 @@ import (
 )
 
 type RoomService interface {
-	CreateRoom(name, description, roomNumber string, price float64, roomType string, capacity int, bedType, category string, facilities, images []string) error
-	UpdateRoom(id string, name, description, roomNumber string, price float64, roomType string, capacity int, bedType, category string, facilities, images []string) error
-	Delete(id string) error
+	CreateRoom(name, description, roomNumber string, price float64, typeID string, capacity int, bedType, category string, facIDs, images []string) error
+	UpdateRoom(id string, name, description, roomNumber string, price float64, typeID string, capacity int, bedType, category string, facIDs, images []string) error
+	DeleteRoom(id string) error
 	GetAll() ([]models.Room, error)
 	GetByID(id string) (models.Room, error)
 }
+
 
 type roomService struct {
 	repo admin.RoomRepository
@@ -28,55 +29,84 @@ func NewRoomService(repo admin.RoomRepository) RoomService {
 	return &roomService{repo}
 }
 
-func (s *roomService) CreateRoom(name, description, roomNumber string, price float64, roomType string, capacity int, bedType, category string, facilities, images []string) error {
+func (s *roomService) CreateRoom(name, description, roomNumber string, price float64, typeID string, capacity int, bedType, category string, facID, images []string) error {
 
-    room := models.Room{
-        Id:            primitive.NewObjectID(),
-        Name:          name,
-        Description:   description,
-        RoomNumber:    roomNumber,
-        PricePerNight: price,
-        Type:          roomType,
-        Capacity:      capacity,
-        Bed_type:       bedType,
-        Category:      category,
-        Facilities:    facilities,
-        Images:        images,
-        Availability:  true,
-        CreatedAt:     primitive.NewDateTimeFromTime(time.Now()),
-    }
+    typeIDObj, err := primitive.ObjectIDFromHex(typeID)
 
-    return s.repo.Create(room)
+	if err != nil {
+		return errors.New("invalid room type ID")
+	}
+
+	facObjIDs := []primitive.ObjectID{}
+	for _, id := range facID {
+		oid, err := primitive.ObjectIDFromHex(id)
+		if err != nil {
+			return errors.New("invalid facility ID: " + id)
+		}
+		facObjIDs = append(facObjIDs, oid)
+	}
+
+	room := models.Room{
+		Id:            primitive.NewObjectID(),
+		Name:          name,
+		Description:   description,
+		RoomNumber:    roomNumber,
+		PricePerNight: price,
+		RoomTypeID:    typeIDObj,
+		FacilitiesID:  facObjIDs,
+		Bed_type:      bedType,
+		Category:      category,
+		Images:        images,
+		Capacity:      capacity,
+		Availability:  true,
+		CreatedAt:     primitive.NewDateTimeFromTime(time.Now()),
+		UpdatedAt:     primitive.NewDateTimeFromTime(time.Now()),
+	}
+	
+	return s.repo.Create(room)
 }
 
 func (s *roomService) UpdateRoom(id string, name, description, roomNumber string, price float64,
-	roomType string, capacity int, bedType, category string, facilities, images []string) error {
+	typeID string, capacity int, bedType, category string, facIDs, images []string) error {
 
-	// Dapatkan room lama
 	room, err := s.repo.GetByID(id)
 	if err != nil {
 		return errors.New("room not found")
 	}
 
-	// Update field
+	// convert RoomTypeID
+	typeIDObj, err := primitive.ObjectIDFromHex(typeID)
+	if err != nil {
+		return errors.New("invalid room type ID")
+	}
+
+	// convert FacilitiesID
+	facObjIDs := []primitive.ObjectID{}
+	for _, fid := range facIDs {
+		oid, err := primitive.ObjectIDFromHex(fid)
+		if err != nil {
+			return errors.New("invalid facility ID: " + fid)
+		}
+		facObjIDs = append(facObjIDs, oid)
+	}
+
 	room.Name = name
 	room.Description = description
 	room.RoomNumber = roomNumber
 	room.PricePerNight = price
-	room.Type = roomType
+	room.RoomTypeID = typeIDObj
 	room.Capacity = capacity
 	room.Bed_type = bedType
 	room.Category = category
-	room.Facilities = facilities
-
+	room.FacilitiesID = facObjIDs
 	if len(images) > 0 {
-		room.Images = images // replace images
+		room.Images = images
 	}
-
 	room.UpdatedAt = primitive.NewDateTimeFromTime(time.Now())
 
 	return s.repo.Update(id, room)
 }
+
 
 
 func (s *roomService) DeleteRoom(id string) error {
@@ -87,9 +117,6 @@ func (s *roomService) GetAll() ([]models.Room, error) {
 	return s.repo.GetAll()
 }
 
-func (s *roomService) Delete(id string) error {
-	return s.repo.Delete(id)
-}
 func (s *roomService) GetByID(id string) (models.Room, error) {
 	return s.repo.GetByID(id)
 }

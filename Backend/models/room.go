@@ -12,11 +12,14 @@ type Room struct {
 	PricePerNight  float64            `bson:"price_per_night" json:"price_per_night"`
 	Images         []string           `bson:"images" json:"images"`
 	Bed_type	   string             `bson:"bed_type" json:"bed_type"`
-	Type           string             `bson:"type" json:"type"`
+	RoomTypeID     primitive.ObjectID   `bson:"room_type_id" json:"room_type_id"`
 	Capacity       int                `bson:"capacity" json:"capacity"`
 	Availability   bool               `bson:"availability" json:"availability"`
-	Facilities     []string           `bson:"facilities" json:"facilities"`
+	FacilitiesID   []primitive.ObjectID `bson:"facilities_id" json:"facilities_id"`
 	Category       string             `bson:"category" json:"category"`
 	CreatedAt      primitive.DateTime `bson:"created_at,omitempty" json:"created_at,omitempty"`
 	UpdatedAt      primitive.DateTime `bson:"updated_at,omitempty" json:"updated_at,omitempty"`
+
+	RoomType   []RoomType   `bson:"room_type,omitempty" json:"room_type,omitempty"`
+	Facilities []Facility   `bson:"facilities,omitempty" json:"facilities,omitempty"`
 }

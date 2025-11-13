@@ -34,11 +34,11 @@ func (h *RoomHandler) CreateRoom(c *gin.Context) {
 	description := c.PostForm("description")
 	roomNumber := c.PostForm("room_number")
 	priceStr := c.PostForm("price")
-	roomType := c.PostForm("type")
+	TypeID := c.PostForm("room_type_id")
 	capacityStr := c.PostForm("capacity")
 	bedType := c.PostForm("bed_type")
 	category := c.PostForm("category")
-	facilities := c.PostFormArray("facilities")
+	facID := c.PostFormArray("facilities_id")
 
 	// Convert angka
 	price, _ := strconv.ParseFloat(priceStr, 64)
@@ -77,8 +77,8 @@ func (h *RoomHandler) CreateRoom(c *gin.Context) {
 		imagePaths = append(imagePaths, imageURLPath) // <-- Menggunakan imageURLPath
 	}
 
-	// Kirim ke service (tidak berubah)
-	err = h.service.CreateRoom(name, description, roomNumber, price, roomType, capacity, bedType, category, facilities, imagePaths)
+	// Kirim ke service
+	err = h.service.CreateRoom(name, description, roomNumber, price, TypeID, capacity, bedType, category, facID, imagePaths)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -101,7 +101,7 @@ func (h *RoomHandler) GetAll(c *gin.Context) {
 func (h *RoomHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
 
-	if err := h.service.Delete(id); err != nil {
+	if err := h.service.DeleteRoom(id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -115,11 +115,11 @@ func (h *RoomHandler) Update(c *gin.Context) {
 	description := c.PostForm("description")
 	roomNumber := c.PostForm("room_number")
 	price, _ := strconv.ParseFloat(c.PostForm("price_per_night"), 64)
-	roomType := c.PostForm("type")
+	TypeID := c.PostForm("room_type_id")
 	capacity, _ := strconv.Atoi(c.PostForm("capacity"))
 	bedType := c.PostForm("bed_type")
 	category := c.PostForm("category")
-	facilities := c.PostFormArray("facilities")
+	facID := c.PostFormArray("facilities_id")
 
 	// Ambil file images
 	form, _ := c.MultipartForm()
@@ -140,7 +140,7 @@ func (h *RoomHandler) Update(c *gin.Context) {
 	}
 
 	// Kirim data ke service (service cukup terima data jadi)
-	err := h.service.UpdateRoom(id, name, description, roomNumber, price, roomType, capacity, bedType, category, facilities, imagePaths)
+	err := h.service.UpdateRoom(id, name, description, roomNumber, price, TypeID, capacity, bedType, category, facID, imagePaths)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
