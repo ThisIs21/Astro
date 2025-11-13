@@ -1,74 +1,78 @@
+// src/App.jsx
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import Navbar from "./components/Navbar";
-{/* Admin*/}
-import AdminLogin from "./pages/Admin/Login";
-import AdminDashboard from "./pages/Admin/DashboardAdmin";
-import AdminRooms from "./pages/Admin/rooms/AdminRooms";
-import CreateRooms from "./pages/Admin/rooms/CreateRooms";
-import UpdateRooms from "./pages/Admin/rooms/UpdateRooms";
-{/* Public */}
+import Footer from "./components/Footer";
+import Sidebar from "./components/Sidebar/adminSidebar";
+
+import AdminLogin from "./pages/auth/login/Login";
+import AdminDashboard from "./pages/auth/Admin/AdminDashboard";
+import AdminRooms from "./pages/auth/Admin/rooms/AdminRooms";
+import AdminRoomCard from "./pages/auth/Admin/rooms/RoomCard";
+import RoomDetailModal from "./pages/auth/Admin/rooms/RoomDetailModal";
+import AdminRoomForm from "./pages/auth/Admin/rooms/RoomFormModal";
+import AdminUsers from "./pages/auth/Admin/users/AdminUser";
+import AdminUserRow from "./pages/auth/Admin/users/UserRow";
+import UserFormModal from "./pages/auth/Admin/users/UserFormModal";
+
 import HomePage from "./pages/HomePage";
 import Rooms from "./pages/nav/Room/Rooms";
 import MyBookings from "./pages/nav/MyBookings";
-import Transaction from "./pages/Transaction";
-import Footer from "./components/Footer";
 import SwimmingPool from "./pages/nav/facilities/SwimmingPool";
 import FitnessCentre from "./pages/nav/facilities/FitnessCentre";
-import AdventurePark  from "./pages/nav/facilities/AdventurePark";
+import AdventurePark from "./pages/nav/facilities/AdventurePark";
 import Transportation from "./pages/nav/facilities/Transportation";
+
+const AdminLayout = ({ children }) => (
+  <div className="min-h-screen bg-gray-100 flex">
+    <Sidebar />
+    <div className="flex-1 p-8 bg-white">{children}</div>
+  </div>
+);
+
 function AppContent() {
   const location = useLocation();
-  //analogi use location :"Tolong berikan saya alamat saat ini (URL) di mana pengunjung sedang berdiri."
-  // Cek apakah path saat ini dimulai dengan "/admin"
-  // Misalnya: /admin/login, /admin/dashboard
-  const isAdminRoute = location.pathname.startsWith("/admin"); //analogi: "Saya akan periksa alamat ini. Apakah alamat ini dimulai dengan kata /admin?"
+  const isAdmin = location.pathname.startsWith("/admin"); // HANYA INI YANG DIPAKAI
 
   return (
     <div className="bg-white dark:bg-black text-gray-900 dark:text-gray-100">
-      
-      {/*
-       1. Navbar Hanya Muncul JIKA BUKAN Admin Route
-       analogi: 	"JANGAN tampilkan Navbar" jika pengunjung sedang berada di alamat yang ada kata /admin-nya.
-       */}
-      {!isAdminRoute && <Navbar />}  
-      
+      {/* HIDE NAVBAR & FOOTER DI SEMUA HALAMAN ADMIN */}
+      {!isAdmin && <Navbar />}
+
       <Routes>
-        {/* Admin*/}
+        {/* LOGIN (TANPA SIDEBAR) */}
         <Route path="/admin/login" element={<AdminLogin />} />
-        <Route path="/admin/dashboard" element={<AdminDashboard />} /> 
-        <Route path="/admin/rooms" element={<AdminRooms />} />
-        <Route path="/admin/rooms/create" element={<CreateRooms />} />
-        <Route path="/admin/rooms/update/:roomId" element={<UpdateRooms />} />
-        
-        {/* Public */}
+
+        {/* SEMUA HALAMAN ADMIN → PAKAI SIDEBAR */}
+        <Route path="/admin/dashboard" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
+        {/* Rooms */}
+        <Route path="/admin/rooms" element={<AdminLayout><AdminRooms /></AdminLayout>} />
+        <Route path="/admin/rooms/cards" element={<AdminLayout><AdminRoomCard /></AdminLayout>} />
+        <Route path="/admin/rooms/cards/detail" element={<AdminLayout><RoomDetailModal /></AdminLayout>} />
+        <Route path="/admin/rooms/new" element={<AdminLayout><AdminRoomForm /></AdminLayout>} />
+        {/* User */}
+        <Route path="/admin/users" element={<AdminLayout><AdminUsers /></AdminLayout>} />
+        <Route path="/admin/users/row" element={<AdminLayout><AdminUserRow /></AdminLayout>} />
+        <Route path="/admin/users/form" element={<AdminLayout><UserFormModal /></AdminLayout>} />
+
+        {/* PUBLIC */}
         <Route path="/" element={<HomePage />} />
         <Route path="/rooms" element={<Rooms />} />
         <Route path="/my-bookings" element={<MyBookings />} />
-        
-        {/* PENTING: Perbaiki Route Swimming Pool (Hapus URL Parameter) */}
-        <Route path="/facilities/swimming-pools" element={<SwimmingPool />} /> 
+        <Route path="/facilities/swimming-pools" element={<SwimmingPool />} />
         <Route path="/facilities/fitness-centre" element={<FitnessCentre />} />
         <Route path="/facilities/adventure-park" element={<AdventurePark />} />
         <Route path="/facilities/transportation" element={<Transportation />} />
-        
-        <Route path="/transaction/:roomId" element={<Transaction />} />
       </Routes>
-      
-      {/* 2. Footer Hanya Muncul JIKA BUKAN Admin Route */}
-      {!isAdminRoute && <Footer />}
-      
+
+      {!isAdmin && <Footer />}
     </div>
   );
 }
 
-function App() {
-    // Component utama App hanya membungkus Router
-    return (
-        <Router>
-            {/* Memindahkan logika ke komponen terpisah agar useLocation dapat digunakan */}
-            <AppContent /> 
-        </Router>
-    );
+export default function App() {
+  return (
+    <Router>
+      <AppContent />
+    </Router>
+  );
 }
-
-export default App;

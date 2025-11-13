@@ -29,7 +29,7 @@ func (h *RoomHandler) CreateRoom(c *gin.Context) {
 		return
 	}
 
-	// Ambil fields text
+	// Ambil fields text (tidak berubah)
 	name := c.PostForm("name")
 	description := c.PostForm("description")
 	roomNumber := c.PostForm("room_number")
@@ -45,7 +45,7 @@ func (h *RoomHandler) CreateRoom(c *gin.Context) {
 	capacity, _ := strconv.Atoi(capacityStr)
 
 	// Ambil banyak gambar
-	files := form.File["images"] // BUKAN "images[]"
+	files := form.File["images"]
 
 	if len(files) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Minimal upload 1 gambar"})
@@ -53,16 +53,28 @@ func (h *RoomHandler) CreateRoom(c *gin.Context) {
 	}
 
 	imagePaths := []string{}
+	
+	// [SETUP FOLDER] Pastikan folder ada
+	os.MkdirAll("uploads/rooms", os.ModePerm)
 
 	for _, file := range files {
-		filename := fmt.Sprintf("uploads/rooms/%d_%s", time.Now().Unix(), file.Filename)
+		// 1. Buat nama file unik
+		filename := fmt.Sprintf("%d_%s", time.Now().Unix(), file.Filename)
+		
+		// 2. Tentukan PATH FISIK (tempat file akan disimpan di disk server)
+		savePath := filepath.Join("uploads", "rooms", filename) // Menggunakan path relatif tanpa '/' di awal
+		
+		// 3. Tentukan PATH URL (yang akan disimpan ke DB dan diakses browser)
+		// [PERBAIKAN FOKUS] Ini HARUS diawali dengan '/' agar server statis (router.Static("/uploads", "./uploads")) bisa bekerja
+		imageURLPath := filepath.Join("/uploads", "rooms", filename) // <--- PATH DENGAN GARIS MIRING AWAL
 
-		if err := c.SaveUploadedFile(file, filename); err != nil {
+		if err := c.SaveUploadedFile(file, savePath); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal upload gambar"})
 			return
 		}
 
-		imagePaths = append(imagePaths, filename)
+		// [PERBAIKAN FOKUS] Simpan PATH URL ke dalam array
+		imagePaths = append(imagePaths, imageURLPath) // <-- Menggunakan imageURLPath
 	}
 
 	// Kirim ke service
