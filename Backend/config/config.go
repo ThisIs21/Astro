@@ -54,3 +54,10 @@ func GetMongoCollection(collectionName string) *mongo.Collection {
 	}
 	return MongoClient.Database(dbName).Collection(collectionName)
 }
+func GetMongoDB() *mongo.Database {
+    dbName := os.Getenv("DB_NAME")
+    if dbName == "" {
+        dbName = "astro"
+    }
+    return MongoClient.Database(dbName)
+}

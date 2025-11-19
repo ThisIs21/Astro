@@ -21,6 +21,8 @@ import (
 )
 
 func AdminRoutes(r *gin.Engine) {
+
+	
 	// ------User--------
 	userRepo := repository_admin_user.NewUserRepository()
 	userService := service_admin_user.NewUserService(userRepo)

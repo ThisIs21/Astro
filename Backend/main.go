@@ -1,63 +1,79 @@
 package main
 
 import (
-    "astro-backend/config"
-    "astro-backend/routes"
+	"astro-backend/config"
+	"astro-backend/routes"
+	"astro-backend/middleware"
 
-    "fmt"
-    "log"
-    "os"
+	activityRepo "astro-backend/repository/activityLog"
+	activityService "astro-backend/service/activityLog"
 
-    "github.com/gin-gonic/gin"
-    // Import CORS middleware
-    "github.com/gin-contrib/cors" 
+	"fmt"
+	"log"
+	"os"
+	"time"
+	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
-    // === 1. LOAD ENV FILE ===
-    if err := config.LoadEnv(); err != nil {
-        log.Fatalf("❌ Gagal load .env: %v", err)
-    }
+	// === 1. Load environment ===
+	if err := config.LoadEnv(); err != nil {
+		log.Fatalf("❌ Failed loading .env: %v", err)
+	}
 
-    // === 2. KONEKSI MONGODB ===
-    config.ConnectDB()
-    defer config.CloseDB()
+	// === 2. Connect MongoDB ===
+	config.ConnectDB()
+	defer config.CloseDB()
 
-    // === 3. SETUP GIN ===
-    ginMode := os.Getenv("GIN_MODE")
-    if ginMode == "" {
-        ginMode = gin.ReleaseMode // default
-    }
-    gin.SetMode(ginMode)
+	db := config.GetMongoDB()
+	if db == nil {
+		log.Fatalf("❌ MongoDB is nil. Check connection.")
+	}
 
-    r := gin.Default()
+	// === 3. Setup Gin Mode ===
+	ginMode := os.Getenv("GIN_MODE")
+	if ginMode == "" {
+		ginMode = gin.ReleaseMode
+	}
+	gin.SetMode(ginMode)
 
-    // --- 3.1. SETUP CORS ---
-    // Konfigurasi ini mengizinkan permintaan dari domain manapun saat pengembangan
-    configCORS := cors.DefaultConfig()
-    configCORS.AllowOrigins = []string{"http://localhost:5173"} 
-    configCORS.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
-    // Penting untuk mengizinkan Content-Type karena kita mengirim JSON
-    configCORS.AllowHeaders = []string{"Origin", "Content-Type", "Authorization"}
-    configCORS.AllowCredentials = true
-    r.Use(cors.New(configCORS))
-    // --- END SETUP CORS ---
+	r := gin.Default()
 
-    r.Static("/uploads", "./uploads") //meh bisa manggil foto
+	// === 4. Init Activity Log Dependencies ===
 
-    // === 4. SETUP ROUTES ===
-    routes.AuthRoutes(r)
-    routes.AdminRoutes(r)
-    
+	collectionName := os.Getenv("ACTIVITY_LOG_COLLECTION")
+	if collectionName == "" {
+		collectionName = "activity_logs" // default fallback
+	}
 
+	// repo butuh (db, collectionName)
+	aRepo := activityRepo.NewActivityLogRepository(db, collectionName)
 
-    // === 5. RUN SERVER ===
-    port := os.Getenv("PORT")
-    if port == "" {
-        port = "8080" // default port
-    }
-    fmt.Printf("🚀 Server running on port %s\n", port)
-    if err := r.Run(":" + port); err != nil {
-        log.Fatalf("❌ Gagal menjalankan server: %v", err)
-    }
+	// service butuh (repo, retentionDays, cleanupInterval)
+	batchSize := 1
+	flushTimeout := 2 * time.Second
+	aService := activityService.NewActivityLogService(aRepo, batchSize, flushTimeout)
+	// === 5. Register Middlewares ===
+	r.Use(gin.WrapH(
+		middleware.ActivityLoggerMiddleware(aService)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// pass-through handler for gin, this will be replaced by Gin router
+			// we just need a wrapper for middleware
+		})),
+	))
+	// === 6. Register Routes ===
+	routes.AuthRoutes(r)
+	routes.AdminRoutes(r)
+
+	// === 7. Run Server ===
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	fmt.Printf("🚀 Server running on port %s\n", port)
+	if err := r.Run(":" + port); err != nil {
+		log.Fatalf("❌ Failed starting server: %v", err)
+	}
 }
