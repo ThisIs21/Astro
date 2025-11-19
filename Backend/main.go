@@ -1,58 +1,79 @@
-	package main
+package main
 
-	import (
-		"astro-backend/config"
-		"astro-backend/routes"
-		"astro-backend/middleware"
-		service "astro-backend/service/activityLog"
-		repository "astro-backend/repository/activityLog"
-		"fmt"
-		"log"
-		"os"
+import (
+	"astro-backend/config"
+	"astro-backend/routes"
+	"astro-backend/middleware"
 
-		"github.com/gin-gonic/gin"
-	)
+	activityRepo "astro-backend/repository/activityLog"
+	activityService "astro-backend/service/activityLog"
 
-	func main() {
-		// === 1. LOAD ENV FILE ===
-		if err := config.LoadEnv(); err != nil {
-			log.Fatalf("❌ Gagal load .env: %v", err)
-		}
+	"fmt"
+	"log"
+	"os"
+	"time"
+	"net/http"
 
-		// === 2. KONEKSI MONGODB ===
-		config.ConnectDB()
-		defer config.CloseDB()
+	"github.com/gin-gonic/gin"
+)
 
-		// === 3. SETUP GIN ===
-		ginMode := os.Getenv("GIN_MODE")
-		if ginMode == "" {
-			ginMode = gin.ReleaseMode // default
-		}
-		gin.SetMode(ginMode)
+func main() {
+	// === 1. Load environment ===
+	if err := config.LoadEnv(); err != nil {
+		log.Fatalf("❌ Failed loading .env: %v", err)
+	}
 
-		r := gin.Default()
-		
-		// === 4. INIT ACTIVITY LOG DEPENDENCY ===
-		db := config.GetMongoDB()
-		
-		activityRepo := repository.NewActivityLogRepository(db)
-		activityService := service.NewActivityLogService(activityRepo)
+	// === 2. Connect MongoDB ===
+	config.ConnectDB()
+	defer config.CloseDB()
 
-		// === 5. REGISTER MIDDLEWARE ===
-		r.Use(middleware.ActivityLogger(activityService))
+	db := config.GetMongoDB()
+	if db == nil {
+		log.Fatalf("❌ MongoDB is nil. Check connection.")
+	}
 
-		// === 4. SETUP ROUTES ===
+	// === 3. Setup Gin Mode ===
+	ginMode := os.Getenv("GIN_MODE")
+	if ginMode == "" {
+		ginMode = gin.ReleaseMode
+	}
+	gin.SetMode(ginMode)
+
+	r := gin.Default()
+
+	// === 4. Init Activity Log Dependencies ===
+
+	collectionName := os.Getenv("ACTIVITY_LOG_COLLECTION")
+	if collectionName == "" {
+		collectionName = "activity_logs" // default fallback
+	}
+
+	// repo butuh (db, collectionName)
+	aRepo := activityRepo.NewActivityLogRepository(db, collectionName)
+
+	// service butuh (repo, retentionDays, cleanupInterval)
+	batchSize := 1
+	flushTimeout := 2 * time.Second
+	aService := activityService.NewActivityLogService(aRepo, batchSize, flushTimeout)
+	// === 5. Register Middlewares ===
+	r.Use(gin.WrapH(
+		middleware.ActivityLoggerMiddleware(aService)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// pass-through handler for gin, this will be replaced by Gin router
+			// we just need a wrapper for middleware
+		})),
+	))
+	// === 6. Register Routes ===
 	routes.AuthRoutes(r)
 	routes.AdminRoutes(r)
 
-
-		// === 5. RUN SERVER ===
-		port := os.Getenv("PORT")
-		if port == "" {
-			port = "8080" // default port
-		}
-		fmt.Printf("🚀 Server running on port %s\n", port)
-		if err := r.Run(":" + port); err != nil {
-			log.Fatalf("❌ Gagal menjalankan server: %v", err)
-		}
+	// === 7. Run Server ===
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
 	}
+
+	fmt.Printf("🚀 Server running on port %s\n", port)
+	if err := r.Run(":" + port); err != nil {
+		log.Fatalf("❌ Failed starting server: %v", err)
+	}
+}

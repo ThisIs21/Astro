@@ -2,9 +2,11 @@ package admin
 
 import (
 	"astro-backend/models"
-	// "fmt"
+	"fmt"
 	"time"
 	"errors"
+	"os"
+	"strings"
 
 	
 
@@ -110,7 +112,34 @@ func (s *roomService) UpdateRoom(id string, name, description, roomNumber string
 
 
 func (s *roomService) DeleteRoom(id string) error {
-	return s.repo.Delete(id)
+    // 1. Ambil data room agar tau daftar file fotonya
+    room, err := s.repo.GetByID(id)
+    if err != nil {
+        return err
+    }
+
+    // 2. Hapus data database terlebih dahulu (lebih aman)
+    if err := s.repo.Delete(id); err != nil {
+        return err
+    }
+
+    // 3. Hapus file foto satu per satu
+    for _, imageURL := range room.Images {
+        if imageURL == "" {
+            continue
+        }
+
+        // 3a. Convert URL → file path fisik
+        // contoh: "/uploads/rooms/a.png" → "uploads/rooms/a.png"
+        filePath := strings.TrimPrefix(imageURL, "/")
+
+        // 3b. Hapus file
+        if err := os.Remove(filePath); err != nil {
+            fmt.Println("⚠️ Gagal hapus file:", filePath, err)
+        }
+    }
+
+    return nil
 }
 
 func (s *roomService) GetAll() ([]models.Room, error) {
