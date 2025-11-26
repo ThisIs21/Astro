@@ -1,40 +1,17 @@
 package activityLog
 
 import (
-	// "context"
 	"encoding/csv"
-	"encoding/json"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
 
-	"github.com/gorilla/mux"
+	"astro-backend/service/activityLog"
+
+	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson"
-
-	// "astro-backend/constants"
-	"astro-backend/service/activityLog"
 )
-
-/* ===========================
-        Middleware
-=========================== */
-
-func AdminAuth(next http.Handler) http.Handler {
-	token := getEnv("ADMIN_API_TOKEN", "")
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if token == "" {
-			http.Error(w, "admin token not configured", http.StatusInternalServerError)
-			return
-		}
-		if r.Header.Get("Authorization") != "Bearer "+token {
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
 
 /* ===========================
         Handler Struct
@@ -48,28 +25,19 @@ func NewActivityLogHandler(svc activityLog.ActivityLogService) *ActivityLogHandl
 	return &ActivityLogHandler{Svc: svc}
 }
 
-func (h *ActivityLogHandler) RegisterRoutes(r *mux.Router) {
-	ar := r.PathPrefix("/api/admin/activity-logs").Subrouter()
-	ar.Use(AdminAuth)
-	ar.HandleFunc("", h.List).Methods("GET")
-	ar.HandleFunc("/search", h.Search).Methods("GET")
-	ar.HandleFunc("/dashboard", h.Dashboard).Methods("GET")
-	ar.HandleFunc("/security-alerts", h.SecurityAlerts).Methods("GET")
-	ar.HandleFunc("/export", h.Export).Methods("GET")
-	ar.HandleFunc("/{id}", h.Detail).Methods("GET")
-}
-
 /* ===========================
-        Handlers
+        List / Pagination
 =========================== */
 
-func (h *ActivityLogHandler) List(w http.ResponseWriter, r *http.Request) {
-	q := r.URL.Query()
+func (h *ActivityLogHandler) List(c *gin.Context) {
+	q := c.Request.URL.Query()
+
 	page := parseInt(q.Get("page"), 1)
 	limit := int64(parseInt(q.Get("limit"), 20))
 	if limit <= 0 || limit > 1000 {
 		limit = 20
 	}
+
 	skip := int64((page - 1)) * limit
 
 	sortBy := q.Get("sort_by")
@@ -80,52 +48,70 @@ func (h *ActivityLogHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	filter := bson.M{}
 
-	if cat := q.Get("category"); cat != "" {
-		filter["category"] = cat
+	if v := q.Get("category"); v != "" {
+		filter["category"] = v
 	}
-	if action := q.Get("action"); action != "" {
-		filter["action_type"] = action
+	if v := q.Get("action"); v != "" {
+		filter["action_type"] = v
 	}
-	if ip := q.Get("ip"); ip != "" {
-		filter["ip_address"] = ip
+	if v := q.Get("ip"); v != "" {
+		filter["ip_address"] = v
 	}
-	if uid := q.Get("user_id"); uid != "" {
-		filter["user_id"] = uid
+	if v := q.Get("user_id"); v != "" {
+		filter["user_id"] = v
 	}
 
-	entries, total, err := h.Svc.Search(r.Context(), filterToMap(filter), sortBy, sortOrder, limit, skip)
+	entries, total, err := h.Svc.Search(
+		c,
+		filterToMap(filter),
+		sortBy,
+		sortOrder,
+		limit,
+		skip,
+	)
 	if err != nil {
-		http.Error(w, "search error: "+err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	totalPages := (total + limit - 1) / limit
 
-	resp := map[string]any{
+	c.JSON(http.StatusOK, gin.H{
 		"data":         entries,
 		"total":        total,
 		"current_page": page,
 		"per_page":     limit,
 		"total_pages":  totalPages,
-	}
-
-	writeJSON(w, resp)
+	})
 }
 
-func (h *ActivityLogHandler) Detail(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-	entry, err := h.Svc.GetByID(r.Context(), id)
+/* ===========================
+        Detail
+=========================== */
+
+func (h *ActivityLogHandler) Detail(c *gin.Context) {
+	id := c.Param("id")
+
+	entry, err := h.Svc.GetByID(c, id)
 	if err != nil {
-		http.Error(w, "not found: "+err.Error(), http.StatusNotFound)
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "log not found",
+		})
 		return
 	}
-	writeJSON(w, entry)
+
+	c.JSON(http.StatusOK, entry)
 }
 
-func (h *ActivityLogHandler) Search(w http.ResponseWriter, r *http.Request) {
-	q := r.URL.Query()
+/* ===========================
+        Search (Advanced)
+=========================== */
+
+func (h *ActivityLogHandler) Search(c *gin.Context) {
+	q := c.Request.URL.Query()
 	filter := bson.M{}
 
+	// Date Range
 	if dr := q.Get("date_from"); dr != "" {
 		if t, err := time.Parse(time.RFC3339, dr); err == nil {
 			filter["created_at"] = bson.M{"$gte": t}
@@ -135,28 +121,29 @@ func (h *ActivityLogHandler) Search(w http.ResponseWriter, r *http.Request) {
 		if t, err := time.Parse(time.RFC3339, dr); err == nil {
 			if fa, ok := filter["created_at"].(bson.M); ok {
 				fa["$lte"] = t
-				filter["created_at"] = fa
 			} else {
 				filter["created_at"] = bson.M{"$lte": t}
 			}
 		}
 	}
 
-	if userID := q.Get("user_id"); userID != "" {
-		filter["user_id"] = userID
+	// General filters
+	if v := q.Get("user_id"); v != "" {
+		filter["user_id"] = v
 	}
-	if ip := q.Get("ip"); ip != "" {
-		filter["ip_address"] = ip
+	if v := q.Get("ip"); v != "" {
+		filter["ip_address"] = v
 	}
-	if action := q.Get("action"); action != "" {
-		filter["action_type"] = action
+	if v := q.Get("action"); v != "" {
+		filter["action_type"] = v
 	}
-	if endpoint := q.Get("endpoint"); endpoint != "" {
-		filter["endpoint"] = endpoint
+	if v := q.Get("endpoint"); v != "" {
+		filter["endpoint"] = v
 	}
 
-	if qstr := q.Get("q"); qstr != "" {
-		filter["$text"] = bson.M{"$search": qstr}
+	// Fulltext search
+	if v := q.Get("q"); v != "" {
+		filter["$text"] = bson.M{"$search": v}
 	}
 
 	limit := int64(parseInt(q.Get("limit"), 50))
@@ -168,48 +155,75 @@ func (h *ActivityLogHandler) Search(w http.ResponseWriter, r *http.Request) {
 		sortOrder = -1
 	}
 
-	entries, total, err := h.Svc.Search(r.Context(), filterToMap(filter), sortBy, sortOrder, limit, skip)
+	entries, total, err := h.Svc.Search(
+		c,
+		filterToMap(filter),
+		sortBy,
+		sortOrder,
+		limit,
+		skip,
+	)
 	if err != nil {
-		http.Error(w, "search error: "+err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	writeJSON(w, map[string]any{
-		"data": entries,
+	c.JSON(http.StatusOK, gin.H{
+		"data":  entries,
 		"total": total,
 	})
 }
 
-func (h *ActivityLogHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, map[string]any{
-		"note": "Implement aggregation pipeline in repository for production dashboard.",
+/* ===========================
+        Dashboard Placeholder
+=========================== */
+
+func (h *ActivityLogHandler) Dashboard(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"note": "Implement dashboard aggregation pipeline in repository.",
 	})
 }
 
-func (h *ActivityLogHandler) SecurityAlerts(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, map[string]any{
-		"note": "Implement failed login + suspicious IP detection using aggregation.",
+/* ===========================
+        Security Alerts
+=========================== */
+
+func (h *ActivityLogHandler) SecurityAlerts(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"note": "Implement failed login detection & suspicious access reports.",
 	})
 }
 
-func (h *ActivityLogHandler) Export(w http.ResponseWriter, r *http.Request) {
+/* ===========================
+        Export CSV
+=========================== */
+
+func (h *ActivityLogHandler) Export(c *gin.Context) {
+	q := c.Request.URL.Query()
 	filter := bson.M{}
-	q := r.URL.Query()
 
-	if category := q.Get("category"); category != "" {
-		filter["category"] = category
+	if v := q.Get("category"); v != "" {
+		filter["category"] = v
 	}
 
-	entries, _, err := h.Svc.Search(r.Context(), filterToMap(filter), "created_at", -1, 10000, 0)
+	entries, _, err := h.Svc.Search(
+		c,
+		filterToMap(filter),
+		"created_at",
+		-1,
+		10000,
+		0,
+	)
 	if err != nil {
-		http.Error(w, "export error: "+err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/csv")
-	w.Header().Set("Content-Disposition", "attachment; filename=activity_logs.csv")
+	c.Header("Content-Type", "text/csv")
+	c.Header("Content-Disposition", "attachment; filename=activity_logs.csv")
 
-	cw := csv.NewWriter(w)
+	cw := csv.NewWriter(c.Writer)
+
 	_ = cw.Write([]string{
 		"id","created_at","category","action_type","endpoint","method",
 		"ip_address","user_email","resource","resource_id","status","message",
@@ -243,18 +257,7 @@ func (h *ActivityLogHandler) Export(w http.ResponseWriter, r *http.Request) {
         Helpers
 =========================== */
 
-func getEnv(k, def string) string {
-	v := os.Getenv(k)
-	if v == "" {
-		return def
-	}
-	return v
-}
-
 func parseInt(s string, def int) int {
-	if s == "" {
-		return def
-	}
 	i, err := strconv.Atoi(s)
 	if err != nil {
 		return def
@@ -268,9 +271,4 @@ func filterToMap(b bson.M) map[string]any {
 		m[k] = v
 	}
 	return m
-}
-
-func writeJSON(w http.ResponseWriter, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(v)
 }
