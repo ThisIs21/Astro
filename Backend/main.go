@@ -15,6 +15,9 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	
+	
+
 )
 
 func main() {
@@ -48,23 +51,21 @@ func main() {
 		collectionName = "activity_logs" // default fallback
 	}
 
-	// repo butuh (db, collectionName)
+	// repo (db, collectionName)
 	aRepo := activityRepo.NewActivityLogRepository(db, collectionName)
 
-	// service butuh (repo, retentionDays, cleanupInterval)
+	// service (repo, retentionDays, cleanupInterval)
 	batchSize := 1
 	flushTimeout := 2 * time.Second
 	aService := activityService.NewActivityLogService(aRepo, batchSize, flushTimeout)
 	// === 5. Register Middlewares ===
 	r.Use(gin.WrapH(
 		middleware.ActivityLoggerMiddleware(aService)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// pass-through handler for gin, this will be replaced by Gin router
-			// we just need a wrapper for middleware
 		})),
 	))
 	// === 6. Register Routes ===
 	routes.AuthRoutes(r)
-	routes.AdminRoutes(r)
+	routes.AdminRoutes(r, db)
 
 	// === 7. Run Server ===
 	port := os.Getenv("PORT")
